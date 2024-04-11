@@ -1,12 +1,5 @@
-/**
- * Welcome to Cloudflare Workers! This is your first worker.
- *
- * - Run `npm run dev` in your terminal to start a development server
- * - Open a browser tab at http://localhost:8787/ to see your worker in action
- * - Run `npm run deploy` to publish your worker
- *
- * Learn more at https://developers.cloudflare.com/workers/
- */
+import { Hono } from 'hono';
+import {Ai} from '@cloudflare/ai';
 
 export interface Env {
 	// Example binding to KV. Learn more at https://developers.cloudflare.com/workers/runtime-apis/kv/
@@ -23,10 +16,24 @@ export interface Env {
 	//
 	// Example binding to a Queue. Learn more at https://developers.cloudflare.com/queues/javascript-apis/
 	// MY_QUEUE: Queue;
+	MY_VARIABLE: string;
+	AI: any;
 }
 
-export default {
-	async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-		return new Response('Hello World!');
-	},
-};
+// @ts-ignore
+const app = new Hono<{ Bindings: Env }>();
+
+app.get('/', async (c) => {
+	const ai = new Ai(c.env.AI);
+	const content = c.req.query('query') || 'What is the origin of the phrase Hello, World';
+	console.log(content);
+	const messages = [
+		{ role: 'system', content: 'You are a friendly assistant' },
+		{ role: 'user', content },
+	];
+	const inputs = { messages };
+	const res = await ai.run('@hf/thebloke/mistral-7b-instruct-v0.1-awq', inputs);
+	return c.json(res);
+});
+
+export default app;
